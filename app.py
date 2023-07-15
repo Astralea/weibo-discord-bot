@@ -35,7 +35,7 @@ class WeiboScrapper:
         self.driver = self.new_driver()
         # create a sqlite database to store id
         # change to mongodb later
-        self.db = sqlite3.connect('weibo_t.db')
+        self.db = sqlite3.connect('weibo.db')
         self.cursor = self.db.cursor()
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS weibo (id INTEGER PRIMARY KEY)''')
         self.db.commit()
