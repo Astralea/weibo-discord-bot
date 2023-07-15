@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# pm2 log files
+.pid
+
 # C extensions
 *.so
 
