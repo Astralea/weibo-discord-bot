@@ -44,6 +44,7 @@ class WeiboScrapper:
         self.kawaii_emojis = data['kawaii_emojis']
         self.kawaii_texts = data['kawaii_texts']
         self.kawaii_titles = data['kawaii_titles']
+        self.should_delete_images = True
         # create a folder called images in the local directory if it does not exist
         self.image_dir='images'
         if not os.path.exists(self.image_dir):
@@ -197,7 +198,7 @@ class WeiboScrapper:
         # check the response
         return response.status_code
     
-    def parse_item_with_images(self,item, embed):
+    def parse_item_with_images(self, item, embed):
         #TODO: collage the images
         image_urls = [v['original']['url'] for k,v in item['pic_infos'].items()]
         image_filepaths = self.images_download(image_urls)
@@ -212,7 +213,8 @@ class WeiboScrapper:
 
         self.webhook_message.add_embed(embed)
         response = self.webhook_message.execute()
-        self.images_delete(image_filepaths)
+        if self.should_delete_images:
+            self.images_delete(image_filepaths)
         return response.status_code
 
     def parse_item_with_video(self,item, embed):
