@@ -1,7 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
+# from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 import time
 import os
@@ -54,11 +54,11 @@ class WeiboScrapper:
     def new_driver(self):
         # Setup driver
         # add headless
+        service = Service()
         options = Options()
         options.add_argument('--headless')
         driver = webdriver.Chrome(\
-            service=Service(ChromeDriverManager().install())\
-                ,options=options)
+            service=service,options=options)
         return driver
 
 
