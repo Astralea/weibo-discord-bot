@@ -16,6 +16,7 @@ import random
 import platform
 import uuid
 from discord_webhook import DiscordWebhook, DiscordEmbed
+from pathlib import Path
 
 
 # Load the .env file
@@ -49,6 +50,8 @@ class WeiboScrapper:
         self.image_dir='images'
         if not os.path.exists(self.image_dir):
             os.mkdir(self.image_dir)
+        dbs_dir_path = Path("databases")
+        dbs_dir_path.mkdir(exist_ok=True)
 
 
     
@@ -144,7 +147,7 @@ class WeiboScrapper:
         if response.status_code == 200:
             # use uuid to generate a random file name with the same extension
             file_name = str(uuid.uuid4()) + os.path.splitext(url)[1]
-            file_path = os.path.join('images',file_name)
+            file_path = os.path.join(self.image_dir,file_name)
             with open(file_path, 'wb') as f:
                 f.write(response.content)
             return file_path
