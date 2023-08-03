@@ -1,5 +1,21 @@
-# wyyxxyctf
+# Weibo-Discord-Bot
 我永遠喜歡永雛塔菲
+
+## Workflow of the bot
+
+Logic flow:
+- See if retweeted
+  - If retweeted, send the retweet
+  - If not retweeted:
+    - See if there is a picture
+      - If there is a picture, send the picture
+      - If not, send the text
+
+### For images
+
+* If only one image, send the image directly
+* If multiple images, send the collage of the images
+  * Will send each gif separately following the embed message
 
 ## Prompts
 Act as an experienced python engineer, write a script to do the following tasks:

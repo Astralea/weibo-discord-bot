@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# yaml files
+*.yaml
+
 # pm2 log files
 .pid
 
