@@ -70,7 +70,7 @@ class WeiboScrapper:
 
         # Run send_status immediately and then every hour
         self.send_status()
-        schedule.every(3).hours.do(self.send_status)
+        schedule.every(6).hours.do(self.send_status)
 
         while True:
             schedule.run_pending()
@@ -129,7 +129,8 @@ class WeiboScrapper:
     def scan(self):
         content = self.get_weibo_content_loop()
         if content:
-            for item in content:
+            # in reverse order
+            for item in reversed(content):
                 if self.check_id(item):
                     self.parse_item(item)
                     time.sleep(5)
