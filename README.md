@@ -68,8 +68,10 @@ You can install these packages using pip:
 ```
 
 3. Configure a `config.toml` file with your Weibo and Discord information. Please refer to `config_sample.toml` file and fill in your details.
+
+4. Change the list `accounts` in `app.py` to reflect your changes in `config.toml` file.
    
-4. Run the script.
+5. Run the script.
 
 ```bash
   python app.py
