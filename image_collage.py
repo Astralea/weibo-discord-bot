@@ -79,7 +79,7 @@ from pathlib import Path
 from uuid import uuid4
 import numpy as np
 
-def resize_gif(image_path: Path):
+def resize_gif___(image_path: Path):
     # Read the GIF file
     print(image_path)
     gif = imageio.mimread(image_path)
@@ -109,4 +109,39 @@ def resize_gif(image_path: Path):
     imageio.mimsave(new_image_path, resized_gif, 'GIF')
 
     return new_image_path
+
+def resize_gif(image_path: Path):
+    # Read the GIF file
+    # print(image_path)
+    reader = imageio.get_reader(image_path)
+
+    # Get the dimensions of the first frame
+    first_frame_shape = reader.get_data(0).shape
+
+    # Resize each frame to half its original size
+    resized_gif = []
+    for i, img in enumerate(reader):
+        new_img = resize(img, (int(img.shape[0] // 1.25), int(img.shape[1] // 1.25)), mode='reflect', anti_aliasing=True)
+
+        # Create an empty image of the same size as the first frame
+        empty_img = Image.new('RGBA', (int(first_frame_shape[1] // 1.25), int(first_frame_shape[0] // 1.25)))
+
+        # Paste the resized image into the empty image
+        empty_img.paste(Image.fromarray((new_img * 255).astype(np.uint8)), (0, 0))
+
+        # Add the new image to the list
+        resized_gif.append(np.array(empty_img))
+
+    # Generate a unique filename
+    new_image_name = str(uuid4()) + '.gif'
+    new_image_path = image_path.parent / new_image_name
+
+    # Save the new GIF
+    imageio.mimsave(new_image_path, resized_gif, 'GIF')
+
+    # Close the reader
+    reader.close()
+
+    return new_image_path
+
 
