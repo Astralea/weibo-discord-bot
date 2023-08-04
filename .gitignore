@@ -9,6 +9,7 @@ __pycache__/
 # toml files
 *.toml
 
+# custom files
 test.ipynb
 weibo.db
 gpt_utility.py
@@ -20,6 +21,9 @@ image_collage.ipynb
 
 # pm2 log files
 .pid
+
+# Desktop Services Store
+.DS_Store
 
 # C extensions
 *.so
