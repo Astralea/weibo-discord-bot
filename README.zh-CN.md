@@ -65,7 +65,9 @@
 
 3. 使用你的微博和 Discord 信息配置 config.toml 文件。请参考 config_sample.toml 文件并填写你的详细信息。
 
-4. 运行脚本。
+4. 将 `app.py` 中的 `accounts` 列表修改为反映在 `config.toml` 文件中的更改。
+
+5. 运行脚本。
 ```bash
   python app.py
 ```

@@ -138,6 +138,13 @@ class WeiboScrapper:
         else:
             print('failed to get content')
             return None       
+        
+    def create_webhook_instance(self,endpoints,**kwargs):
+        if 'avatar_url' in endpoints:
+            avatar_url = endpoints['avatar_url']
+        else:
+            avatar_url = None
+        return DiscordWebhook(url=endpoints['message_webhook'],avatar_url=avatar_url,**kwargs)
 
     def get_weibo_content_loop(self,endpoints):
         i=0
@@ -200,7 +207,7 @@ class WeiboScrapper:
 
 
     def parse_item(self,item,endpoints):
-        self.webhook_message = DiscordWebhook(url=endpoints['message_webhook'])
+        self.webhook_message = self.create_webhook_instance(endpoints)
         text_raw = item['text_raw']
         created_at = item['created_at']
         # title="塔菲の新微博喵~"
@@ -281,7 +288,7 @@ class WeiboScrapper:
     def send_animated_images(self, gif_candidates_paths, endpoints):
         # send a gif using self.webhook_message
         # return the status code of the request
-        gif_webhook = DiscordWebhook(url=endpoints['message_webhook'])
+        gif_webhook = self.create_webhook_instance(endpoints)
         files_to_delete = []
         for gif in gif_candidates_paths:
             if gif.suffix == ".gif":
@@ -304,7 +311,7 @@ class WeiboScrapper:
 
     def parse_item_with_video(self,item, embed,endpoints):
         video_url=item['page_info']['media_info']['stream_url']
-        video_webhook = DiscordWebhook(url=endpoints['message_webhook'],content=video_url)
+        video_webhook = self.create_webhook_instance(endpoints=endpoints,content=video_url)
         self.webhook_message.add_embed(embed)
         response1 = self.webhook_message.execute()
         response2 = video_webhook.execute()

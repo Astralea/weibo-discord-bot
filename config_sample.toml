@@ -8,6 +8,7 @@
         ajax_url = "https://weibo.com/ajax/statuses/mymblog?uid=6593199887&page=1&feature=0"
         read_link_url = "https://weibo.com/u/6593199887"
         message_webhook = "YOUR DISCORD WEBHOOK URL"
+        avatar_url = "https://upload-os-bbs.hoyolab.com/upload/2021/08/05/72354102/caca7eebb8162aaebc7c8b729734242b_2822963320735910337.jpg?x-oss-process=image/resize,s_1000/quality,q_80/auto-orient,0/interlace,1/format,jpg"
         title = "原神"
 [status]
     message_webhook = "YOUR DISCORD WEBHOOK URL"
