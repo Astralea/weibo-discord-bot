@@ -339,7 +339,7 @@ class WeiboScrapper:
             with collage_image_path.open("rb") as f:
                 self.webhook_message.add_file(file=f.read(), filename=collage_image_path.name)
             embed.set_image(url=f'attachment://{collage_image_path.name}')
-        embed.add_embed_field(name=user_name, value=retweet_text)
+        embed.add_embed_field(name=f"@{user_name}", value=retweet_text)
         self.webhook_message.add_embed(embed)
         response = self.webhook_message.execute()
         if self.should_delete_images and 'image_filepaths' in locals():
