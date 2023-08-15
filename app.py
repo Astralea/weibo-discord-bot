@@ -377,7 +377,7 @@ class WeiboScrapper:
         return response.status_code
     
 if __name__ == "__main__":
-    accounts=['ace_taffy','genshin_impact']
+    accounts=['ace_taffy','genshin_impact','silver_carp']
     # accounts=['ace_taffy']
     weibo_scrapper = WeiboScrapper(accounts)
     weibo_scrapper.start()
