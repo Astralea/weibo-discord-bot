@@ -1,6 +1,10 @@
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
+# from selenium.webdriver import Chrome as Driver
+from selenium.webdriver import Firefox as Driver
+# from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.firefox.service import Service
+# from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.firefox.options import Options
 # from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 import time
@@ -40,7 +44,7 @@ CONFIG = toml.load('config.toml')
 
 
 class WeiboScrapper:
-    def __init__(self,account_names: List[str]):
+    def __init__(self,account_names: List[str]='auto'):
         # Setup driver
         # add headless
         self.driver = self.new_driver()
@@ -65,7 +69,13 @@ class WeiboScrapper:
             # In Jupyter, use the current working directory
             self.image_dir = Path(IPython.get_ipython().magic('pwd')) / 'images'
         self.image_dir.mkdir(exist_ok=True)
-        self.account_names = account_names
+        if account_names == 'auto':
+            self.account_names = CONFIG['weibo'].keys()
+        else:
+            self.account_names = account_names
+            for account in account_names:
+                if account not in CONFIG['weibo'].keys():
+                    raise Exception(f'account {account} not found in config.toml')
 
 
     
@@ -74,9 +84,11 @@ class WeiboScrapper:
         # add headless
         service = Service()
         options = Options()
+        # see if using firefox from options
+        if options.__repr__().find('firefox') != -1:
+            options.set_preference('devtools.jsonview.enabled', False)
         options.add_argument('--headless')
-        driver = webdriver.Chrome(\
-            service=service,options=options)
+        driver = Driver(service=service,options=options)
         return driver
 
 
@@ -375,9 +387,8 @@ class WeiboScrapper:
         response = self.webhook_status.execute()
         # check the response
         return response.status_code
-    
+
 if __name__ == "__main__":
-    accounts=['ace_taffy','genshin_impact','silver_carp']
     # accounts=['ace_taffy']
-    weibo_scrapper = WeiboScrapper(accounts)
+    weibo_scrapper = WeiboScrapper()
     weibo_scrapper.start()
