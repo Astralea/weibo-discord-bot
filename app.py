@@ -1,10 +1,5 @@
 from selenium import webdriver
-# from selenium.webdriver import Chrome as Driver
-from selenium.webdriver import Firefox as Driver
-# from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.firefox.service import Service
-# from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.firefox.options import Options
+
 # from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 import time
@@ -24,23 +19,21 @@ from pathlib import Path
 from image_collage import combine_images, resize_gif
 from typing import List
 import IPython
-
-
-# # from dotenv import load_dotenv, find_dotenv
-# # # Load the .env file
-# # load_dotenv(find_dotenv())
-
-# # Access the variables as environment variables
-# # WEIBO_AJAX_URL = "https://weibo.com/ajax/statuses/mymblog?uid=6593199887&page=1&feature=0"#
-# WEIBO_AJAX_URL = os.getenv('WEIBO_AJAX_URL')
-# WEIBO_URL = os.getenv('WEIBO_URL')
-# MESSAGE_WEBHOOK_URL = os.getenv('MESSAGE_WEBHOOK_URL')
-# STATUS_WEBHOOK_URL = os.getenv('STATUS_WEBHOOK_URL')
-
 import toml
 
 # Load TOML data from a file
 CONFIG = toml.load('config.toml')
+
+if platform.system() == 'Darwin':
+    from selenium.webdriver import Firefox as Driver
+    from selenium.webdriver.firefox.service import Service
+    from selenium.webdriver.firefox.options import Options
+elif platform.system() == 'Linux':
+    from selenium.webdriver import Chrome as Driver
+    from selenium.webdriver.chrome.service import Service
+    from selenium.webdriver.chrome.options import Options
+else:
+    raise Exception('Unsupported OS')
 
 
 class WeiboScrapper:
@@ -87,7 +80,11 @@ class WeiboScrapper:
         # see if using firefox from options
         if options.__repr__().find('firefox') != -1:
             options.set_preference('devtools.jsonview.enabled', False)
-        options.add_argument('--headless')
+            options.add_argument('--headless')
+        elif options.__repr__().find('chrome') != -1:
+            options.add_argument('--headless')
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
         driver = Driver(service=service,options=options)
         return driver
 
