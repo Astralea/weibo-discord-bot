@@ -17,7 +17,7 @@ hotlink_protected_image_download.ipynb
 image_collage.ipynb
 *.db
 *.pid
-*.json
+# *.json
 
 # images
 /images
