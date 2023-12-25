@@ -11,12 +11,13 @@ __pycache__/
 
 # custom files
 test.ipynb
-# weibo.db
+weibo.db
 gpt_utility.py
 hotlink_protected_image_download.ipynb
 image_collage.ipynb
-# *.db
+*.db
 *.pid
+*.json
 
 # images
 /images
