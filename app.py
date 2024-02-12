@@ -71,12 +71,27 @@ class WeiboScrapper:
                     raise Exception(f'account {account} not found in config.toml')
 
 
+    def is_running_in_china(self):
+        """Check if the current IP location is within China."""
+        try:
+            response = requests.get("http://ip-api.com/json/?fields=countryCode")
+            if response.status_code == 200:
+                json_response = response.json()
+                return json_response.get("countryCode") == "CN"
+            return False
+        except requests.RequestException:
+            return False
     
     def new_driver(self):
         # Setup driver
         # add headless
         service = Service()
         options = Options()
+        # if running in China (aliyun) specify the paths
+        if self.is_running_in_china():
+            chromedriver_path = '../chromedriver-linux64/chromedriver'  # Update this path
+            options.binary_location = "/usr/bin/google-chrome"
+            service = Service(executable_path=chromedriver_path)
         # see if using firefox from options
         if options.__repr__().find('firefox') != -1:
             options.set_preference('devtools.jsonview.enabled', False)
