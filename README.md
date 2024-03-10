@@ -67,7 +67,7 @@ You can install these packages using pip:
   pip install -r requirements.txt
 ```
 
-3. Configure a `config.toml` file with your Weibo and Discord information. Please refer to `config_sample.toml` file and fill in your details.
+3. Configure a `config.toml` file with your Weibo and Discord information. Please refer to `config_example.toml` file and fill in your details.
 
 4. Change the list `accounts` in `app.py` to reflect your changes in `config.toml` file.
    
