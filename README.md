@@ -2,7 +2,7 @@
 
 *Read this in other languages: [简体中文](README.zh-CN.md)*
 
-This project is a Python-based bot that scans specified Weibo accounts and sends new posts to corresponding Discord channels. It's a great tool if you want to keep track of certain Weibo accounts and have updates delivered directly to your Discord server.
+This project is a Python-based bot that scans specified Weibo accounts and sends new posts to designated Discord channels. It's a great tool if you want to keep track of certain Weibo accounts and have updates delivered directly to your Discord server.
 
 ## Features
 

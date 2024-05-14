@@ -2,7 +2,7 @@ module.exports = {
     apps : [{
       name: "AceTaffy-Weibo",
       script: "./app.py",
-      interpreter: "python",
+      interpreter: "/Users/hina/anaconda3/envs/web/bin/python",
       args: '0',
       autorestart: true,
       watch: false,
