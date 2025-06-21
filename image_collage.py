@@ -2,10 +2,10 @@ from PIL import Image
 from uuid import uuid4
 from pathlib import Path
 
-def combine_images(images, new_image_path='auto', columns='auto', space=0, size_limit= 18* 1024 ** 2):
+def combine_images(images, new_image_path='auto', columns='auto', space=0, size_limit=3*1024*1024):
     """
     Combines multiple images into a single image.
-    size_limit is in bytes, can be at most 25 MB for now (for discord free users)
+    size_limit is in bytes, set to 3MB for Discord webhook compatibility
     """
     if columns == 'auto':
         l = len(images)
@@ -25,7 +25,27 @@ def combine_images(images, new_image_path='auto', columns='auto', space=0, size_
         rows += 1
 
     # Open all images once and store the references
-    img_refs = [Image.open(img) for img in images]
+    img_refs = []
+    for img_path in images:
+        with Image.open(img_path) as img:
+            # Resize images to max 1024x1024 while preserving aspect ratio
+            original_width, original_height = img.size
+            max_dimension = 1024
+            
+            if original_width > max_dimension or original_height > max_dimension:
+                # Calculate scale factor to fit within 1024x1024
+                scale_factor = min(max_dimension / original_width, max_dimension / original_height)
+                new_width = int(original_width * scale_factor)
+                new_height = int(original_height * scale_factor)
+                
+                # Ensure dimensions don't exceed 1024
+                new_width = min(new_width, max_dimension)
+                new_height = min(new_height, max_dimension)
+                
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                print(f"Resized image for collage from {original_width}x{original_height} to {new_width}x{new_height}")
+            
+            img_refs.append(img.copy())
 
     # Find the maximum width and height per column and row
     max_widths = [max((img_refs[i + j * columns] for j in range(rows) if i + j * columns < len(img_refs)), key=lambda img: img.width).width for i in range(columns)]
@@ -37,7 +57,6 @@ def combine_images(images, new_image_path='auto', columns='auto', space=0, size_
 
     # Create the background image
     background = Image.new('RGBA', (total_width, total_height), (255, 255, 255, 0))
-    # background = Image.new('RGB', (total_width, total_height), (255, 255, 255))
 
     x, y = 0, 0
     for i, img in enumerate(img_refs):
@@ -61,14 +80,44 @@ def combine_images(images, new_image_path='auto', columns='auto', space=0, size_
         new_image_name = str(uuid4()) + '.png'
         new_image_path = directory / new_image_name
 
-    # resize the image if it's too large
-    background.save(new_image_path)
-
-    while Path(new_image_path).stat().st_size > size_limit:
-        # 0.5 of current size
-        max_size = (int(background.width * 0.8), int(background.height * 0.8))
-        background.thumbnail(max_size)
-        background.save(new_image_path)
+    # Save the image and compress if needed
+    background.save(new_image_path, 'PNG', optimize=True)
+    
+    # Compress the image if it's too large
+    compression_attempts = 0
+    max_compression_attempts = 10
+    
+    while Path(new_image_path).stat().st_size > size_limit and compression_attempts < max_compression_attempts:
+        compression_attempts += 1
+        
+        # Calculate new size (reduce by 20% each time)
+        scale_factor = 0.8 ** compression_attempts
+        new_width = int(background.width * scale_factor)
+        new_height = int(background.height * scale_factor)
+        
+        # Resize the image
+        background = background.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        # Save with higher compression
+        background.save(new_image_path, 'PNG', optimize=True, compress_level=9)
+        
+        print(f"Compression attempt {compression_attempts}: {Path(new_image_path).stat().st_size / (1024*1024):.1f}MB")
+    
+    # If still too large, try converting to JPEG with high compression
+    if Path(new_image_path).stat().st_size > size_limit:
+        print("PNG too large, converting to JPEG...")
+        jpeg_path = new_image_path.with_suffix('.jpg')
+        background = background.convert('RGB')  # Convert to RGB for JPEG
+        background.save(jpeg_path, 'JPEG', quality=60, optimize=True)
+        
+        # Check if JPEG is smaller
+        if jpeg_path.stat().st_size < new_image_path.stat().st_size:
+            new_image_path.unlink()  # Remove PNG
+            new_image_path = jpeg_path
+            print(f"Converted to JPEG: {new_image_path.stat().st_size / (1024*1024):.1f}MB")
+        else:
+            jpeg_path.unlink()  # Remove JPEG, keep PNG
+            print("JPEG not smaller, keeping PNG")
 
     return new_image_path
 

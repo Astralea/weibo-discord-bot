@@ -1,13 +1,15 @@
 discord_webhook==1.2.1
-imageio==2.31.1
-numpy==1.24.3
-openai==0.27.8
-Pillow==10.0.0
-python-dotenv==1.0.0
-pytz==2023.3
-requests==2.28.2
-schedule==1.2.0
-selenium==4.11.2
-scikit-image
-ipython~=8.14.0
-toml~=0.10.2
+imageio>=2.33.0
+# numpy and scikit-image will be installed via conda to avoid compilation issues
+Pillow>=9.0.0
+pytz>=2021.1
+requests>=2.25.0
+schedule>=1.1.0
+selenium>=4.15.0
+webdriver-manager>=4.0.0
+toml>=0.10.0
+# Security and monitoring
+cryptography>=3.4.0
+urllib3>=1.26.0
+# Optional: Windows API support for better signal handling
+pywin32>=228; sys_platform == "win32"
