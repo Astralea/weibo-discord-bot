@@ -4,114 +4,276 @@
 
 This project is a Python-based bot that scans specified Weibo accounts and sends new posts to designated Discord channels. It's a great tool if you want to keep track of certain Weibo accounts and have updates delivered directly to your Discord server.
 
-## Features
+## 🚀 Features
 
-* Scans multiple Weibo accounts for new posts at scheduled intervals.
-* Sends new posts to corresponding Discord channels configured for each Weibo account.
-* Handles different types of Weibo posts including:
-  * Text only posts.
-  * Posts with images (single or multiple).
-  * Posts with video content.
-  * Posts with retweeted content.
-* If a post contains multiple images, it creates a collage of the images. Each GIF file will be send separately following the embed message.
-* Stores the ID of each processed Weibo post in a SQLite database to prevent duplication.
-* Sends a status update to a specified Discord channel every scheduled hours to indicate that the script is still running.
-* Uses Discord Webhook to deliver posts to Discord.
+* **Multi-Account Monitoring**: Scans multiple Weibo accounts for new posts at scheduled intervals
+* **Rich Content Support**: Handles different types of Weibo posts including:
+  * Text-only posts
+  * Posts with images (single or multiple)
+  * Posts with video content
+  * Posts with retweeted content
+* **Smart Image Processing**: 
+  * Creates collages for multiple images
+  * Sends GIFs separately for better Discord compatibility
+  * Automatic image compression and resizing (max 1024x1024)
+  * Aggressive compression to stay under Discord's 8MB limit
+* **Duplicate Prevention**: Stores processed post IDs in SQLite database
+* **Status Monitoring**: Sends status updates every 6 hours to confirm bot is running
+* **Cross-Platform Support**: Works on Windows, macOS, and Linux
+* **Automatic Driver Management**: ChromeDriver/GeckoDriver automatically downloaded and managed
+* **Enterprise Security**: Comprehensive security features and input validation
+* **Rate Limiting**: Built-in rate limiting to prevent API abuse
+* **Comprehensive Logging**: Detailed logging with file rotation and monitoring
 
-## Workflow
+## 🛡️ Security Features
 
-1. The bot first retrieves all contents from the Weibo AJAX request URL of each Weibo account.
-2. For each retrieved post, it checks if the ID of the post is already in the SQLite database.
-   * If the ID is in the database, the bot skips this post.
-   * If the ID is not in the database, indicating it's a new post, the bot proceeds with the following steps:
-     * Checks whether the post is a retweet.
-       * If the post is a retweet, it sends the retweeted content to the configured Discord channel.
-       * If the post is not a retweet, it checks whether the post contains images or video.
-         * If the post contains a single image, it sends the image directly to the Discord channel.
-         * If the post contains multiple images, it creates a collage of the images and sends it to the Discord channel. Each GIF found among the images is sent separately following the embed message.
-         * If the post contains a video, it sends the video to the Discord channel.
-         * If the post does not contain any images or video, it sends the text of the post to the Discord channel.
-3. The bot records the ID of each new Weibo post in a SQLite database to prevent sending duplicate posts.
-4. Every scheduled hours, the bot sends a status update to a specified Discord channel to indicate that it is still running.
+* **Input Validation**: URL validation against whitelist, file extension validation
+* **Rate Limiting**: Maximum 5 requests per minute to prevent API abuse
+* **File Security**: Size limits, content type validation, safe file operations
+* **Database Security**: SQL injection prevention, connection timeouts, automatic cleanup
+* **WebDriver Security**: Headless mode, anti-detection measures, security flags
+* **Logging & Monitoring**: Structured logging, error tracking, no sensitive data exposure
 
-These operations are performed continuously according to the configured schedule.
+## 🔄 Workflow
 
-## Requirements
+1. **Content Retrieval**: Bot retrieves content from Weibo AJAX endpoints
+2. **Duplicate Check**: Checks if post ID exists in SQLite database
+3. **Content Processing**: 
+   - **Retweets**: Sends retweeted content to Discord
+   - **Images**: Downloads, compresses, and creates collages if needed
+   - **Videos**: Sends video links to Discord
+   - **Text**: Sends text-only posts
+4. **Database Update**: Records new post IDs to prevent duplicates
+5. **Status Updates**: Sends periodic status updates to confirm bot operation
+
+## 📋 Requirements
 
 * Python 3.7 or above
-* Selenium
-* Requests
-* Discord Webhook
-* Schedule
-* Pytz
-* SQLite3
-* TOML
+* Chrome or Firefox browser (for web scraping)
+* Internet connection (for automatic driver download)
 
-You can install these packages using pip:
+## 🚀 Installation
+
+### Windows (Recommended)
+
+1. **Quick Setup with Conda**
+   ```bash
+   git clone https://github.com/uiharu-kazari/weibo-discord-bot.git
+   cd weibo-discord-bot
+   setup_windows.bat
+   ```
+
+2. **Manual Setup**
+   ```bash
+   git clone https://github.com/uiharu-kazari/weibo-discord-bot.git
+   cd weibo-discord-bot
+   python setup_windows.py
+   ```
+
+### macOS/Linux
+
 ```bash
-  pip install -r requirements.txt
+git clone https://github.com/uiharu-kazari/weibo-discord-bot.git
+cd weibo-discord-bot
+pip install -r requirements.txt
 ```
 
-## Usage
+## ⚙️ Configuration
 
-1. Clone this repository.
+1. **Copy and edit configuration**
+   ```bash
+   cp config_example.toml config.toml
+   ```
 
-```bash
-  git clone https://github.com/uiharu-kazari/weibo-discord-bot.git
-  cd weibo-discord-bot
-```
-
-2. Install the required packages.
-
-```bash
-  pip install -r requirements.txt
-```
-
-3. Configure a `config.toml` file with your Weibo and Discord information. Please refer to `config_example.toml` file and fill in your details.
-
-4. Change the list `accounts` in `app.py` to reflect your changes in `config.toml` file.
+2. **Edit `config.toml` with your settings**
+   ```toml
+   [weibo]
+       [weibo.your_account_name]
+           ajax_url = "https://weibo.com/ajax/statuses/mymblog?uid=YOUR_UID&page=1&feature=0"
+           read_link_url = "https://weibo.com/u/YOUR_UID"
+           message_webhook = "YOUR_DISCORD_WEBHOOK_URL"
+           avatar_url = "OPTIONAL_AVATAR_URL"
+           title = "Your Account Title"
    
-5. Run the script.
+   [status]
+       message_webhook = "YOUR_STATUS_WEBHOOK_URL"
+   ```
 
+3. **Optional: Configure security settings**
+   ```bash
+   # Edit security_config.toml for advanced security settings
+   # See SECURITY.md for detailed security documentation
+   ```
+
+## 🎯 Usage
+
+### Basic Usage
 ```bash
-  python app.py
+python app.py
 ```
 
-For `pm2`, configure the `ecosystem.config.js` file then run
+### Production Deployment with PM2
 ```bash
-  pm2 start ecosystem.config.js
+# Configure ecosystem.config.js then run:
+pm2 start ecosystem.config.js
 ```
-For more details about pm2, check [pm2 documentation](https://pm2.keymetrics.io/docs/usage/quick-start/).
 
-## Obtaining the AJAX URL from Weibo
+### With Conda Environment
+```bash
+conda activate web
+python app.py
+```
 
-To get the AJAX URL for a specific Weibo account, you need to perform the following steps:
+## 🔧 Advanced Configuration
 
-1. Open the Weibo page of the account in a web browser.
-2. Open the Network tab in the browser's Developer Tools.
-3. Reload the Weibo page.
-4. In the Network tab, look for a request of name `mymblog`. This is usually an XHR request.
-5. Right-click this request and select "Copy > Copy link address" (the exact wording may vary depending on your browser).
-6. The copied URL is the AJAX URL for this Weibo account. Paste this URL into the `config.toml` file.
+### Security Configuration
+The bot includes a comprehensive security configuration file (`security_config.toml`) with settings for:
+- Rate limiting parameters
+- File size limits
+- Timeout settings
+- Allowed domains and file extensions
+- Logging configuration
+- Anti-detection settings
 
-For example, the AJAX URL could look like this: 
+### Environment Variables
+For enhanced security, you can use environment variables:
+```bash
+export DISCORD_WEBHOOK_URL="your_webhook_url"
+export WEIBO_API_KEY="your_api_key"  # If applicable
+```
 
-```url
+## 📊 Monitoring & Logging
+
+The bot provides comprehensive logging:
+- **File Logging**: `weibo_bot.log` with automatic rotation
+- **Console Output**: Real-time status updates
+- **Error Tracking**: Detailed error logging with stack traces
+- **Performance Monitoring**: Database cleanup, memory usage tracking
+
+### Log Levels
+- `DEBUG`: Detailed debugging information
+- `INFO`: General operational information
+- `WARNING`: Warning messages for potential issues
+- `ERROR`: Error messages with full context
+
+## 🔍 Obtaining Weibo AJAX URLs
+
+1. Open the Weibo account page in your browser
+2. Open Developer Tools → Network tab
+3. Reload the page
+4. Look for `mymblog` XHR request
+5. Copy the request URL
+
+Example AJAX URL:
+```
 https://weibo.com/ajax/statuses/mymblog?uid=7618923072&page=1&feature=0
 ```
 
-In this URL:
+**Parameters:**
+- `uid`: Weibo account User ID
+- `page`: Page number (usually 1 for recent posts)
+- `feature`: Content filter (0=all, 1=original, 2=images, 3=videos, 4=music)
 
-* `uid` represents the User ID of the Weibo account. This is the user ID of the Weibo account you want to monitor.
-* `page` represents the page number of the Weibo account's posts. Usually, you would set this to 1 to get the most recent posts.
-* `feature` is a filter used to specify the type of posts you want to retrieve. For instance, `feature=0` generally returns all types of posts, `feature=1` returns original posts (not including reposts or retweets), `feature=2` returns image posts, `feature=3` returns video posts, `feature=4` returns music posts. You can adjust this parameter according to your needs.
+## 🛠️ Troubleshooting
 
-Please note that the AJAX URL can change over time or depending on the Weibo platform updates. If the bot stops working, you might need to update the AJAX URL.
+### Common Issues
 
+1. **Webhook Errors (413 Payload Too Large)**
+   - Bot automatically compresses images to stay under Discord limits
+   - Check logs for compression details
+   - Images are resized to max 1024x1024 pixels
 
-## Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
+2. **Chrome Driver Issues**
+   - Bot automatically downloads and manages drivers
+   - Check internet connection for driver downloads
+   - Antivirus may block driver downloads temporarily
 
-## License
+3. **Database Errors**
+   - Delete `weibo.db` to reset database
+   - Check file permissions in project directory
+   - Database automatically cleans up old records
 
-This project is licensed under the terms of the MIT license. For more details, see the [LICENSE](LICENSE) file in the repository.
+4. **Rate Limiting**
+   - Bot includes built-in rate limiting (5 requests/minute)
+   - Check logs for rate limit warnings
+   - Adjust settings in `security_config.toml` if needed
+
+### Windows-Specific Issues
+
+1. **Permission Errors**
+   - Run Command Prompt/PowerShell as Administrator
+   - Temporarily disable antivirus for driver downloads
+
+2. **Chrome Voice Transcription Logs**
+   - These are normal Chrome internal logs
+   - Bot suppresses most Chrome warnings
+   - Logs don't affect functionality
+
+### Debug Mode
+```bash
+# Test configuration and dependencies
+python test_app.py
+
+# Check recent database records
+python -c "from app import DatabaseManager; db = DatabaseManager(); print(db.get_recent_ids(10))"
+```
+
+## 🔒 Security Considerations
+
+### Webhook Security
+- Keep webhook URLs private and secure
+- Regularly rotate webhook URLs
+- Monitor webhook usage for unauthorized activity
+
+### File Security
+- Bot only downloads from trusted domains
+- All files are validated for content type and size
+- Temporary files are automatically cleaned up
+
+### Network Security
+- All requests use HTTPS
+- Rate limiting prevents API abuse
+- Request timeouts prevent hanging connections
+
+For detailed security information, see [SECURITY.md](SECURITY.md).
+
+## 📈 Performance Features
+
+- **Image Optimization**: Automatic compression and resizing
+- **Database Indexing**: Optimized queries with proper indexing
+- **Memory Management**: Automatic cleanup of old records and files
+- **Connection Pooling**: Efficient database and network connections
+- **Batch Operations**: Optimized database operations
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+### Development Setup
+```bash
+git clone https://github.com/uiharu-kazari/weibo-discord-bot.git
+cd weibo-discord-bot
+pip install -r requirements.txt
+# Make your changes
+python test_app.py  # Run tests
+```
+
+## 📄 License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## 🙏 Acknowledgments
+
+- Weibo for providing the platform
+- Discord for webhook functionality
+- Selenium for web automation
+- All contributors and users of this project
+
+---
+
+**⚠️ Important**: This bot is for educational and personal use. Please respect Weibo's terms of service and rate limits. The bot includes built-in rate limiting to be respectful to Weibo's servers.
