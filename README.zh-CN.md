@@ -24,6 +24,8 @@
 * **企业级安全**: 全面的安全功能和输入验证
 * **速率限制**: 内置速率限制以防止 API 滥用
 * **全面日志记录**: 详细的日志记录，支持文件轮转和监控
+* **浏览器内 AJAX 抓取**: 在 Selenium 中直接获取 JSON，无需手动提供 AJAX URL
+* **可选移动端 DOM 抽取**: 在代码中切换，修改 `core/settings.py` 的 `EXTRACTION_METHOD`
 
 ## 🛡️ 安全功能
 
@@ -52,44 +54,28 @@
 * Chrome 或 Firefox 浏览器（用于网页抓取）
 * 互联网连接（用于自动下载驱动程序）
 
-## 🚀 安装
-
-### Windows（推荐）
-
-1. **使用 Conda 快速安装**
-   ```bash
-   git clone https://github.com/uiharu-kazari/weibo-discord-bot.git
-   cd weibo-discord-bot
-   setup_windows.bat
-   ```
-
-2. **手动安装**
-   ```bash
-   git clone https://github.com/uiharu-kazari/weibo-discord-bot.git
-   cd weibo-discord-bot
-   python setup_windows.py
-   ```
-
-### macOS/Linux
+## 🚀 快速开始
 
 ```bash
 git clone https://github.com/uiharu-kazari/weibo-discord-bot.git
 cd weibo-discord-bot
 pip install -r requirements.txt
+cp config.toml.example config.toml
+# 编辑 config.toml 后运行：
+python app.py
 ```
 
 ## ⚙️ 配置
 
 1. **复制并编辑配置文件**
    ```bash
-   cp config_example.toml config.toml
+   cp config.toml.example config.toml
    ```
 
 2. **使用你的设置编辑 `config.toml`**
    ```toml
    [weibo]
        [weibo.your_account_name]
-           ajax_url = "https://weibo.com/ajax/statuses/mymblog?uid=YOUR_UID&page=1&feature=0"
            read_link_url = "https://weibo.com/u/YOUR_UID"
            message_webhook = "YOUR_DISCORD_WEBHOOK_URL"
            avatar_url = "OPTIONAL_AVATAR_URL"
@@ -98,6 +84,8 @@ pip install -r requirements.txt
    [status]
        message_webhook = "YOUR_STATUS_WEBHOOK_URL"
    ```
+
+- 抽取方式在代码中设置：编辑 `core/settings.py` 的 `EXTRACTION_METHOD` 为 `"ajax_json"` 或 `"mobile_dom"`。
 
 3. **可选：配置安全设置**
    ```bash
@@ -112,9 +100,8 @@ pip install -r requirements.txt
 python app.py
 ```
 
-### 使用 PM2 进行生产部署
+### 生产部署（可选）
 ```bash
-# 配置 ecosystem.config.js 然后运行：
 pm2 start ecosystem.config.js
 ```
 
@@ -124,23 +111,12 @@ conda activate web
 python app.py
 ```
 
-## 🔧 高级配置
+## 🔧 运行参数（在代码中修改）
 
-### 安全配置
-机器人包含一个全面的安全配置文件（`security_config.toml`），具有以下设置：
-- 速率限制参数
-- 文件大小限制
-- 超时设置
-- 允许的域名和文件扩展名
-- 日志配置
-- 反检测设置
-
-### 环境变量
-为了增强安全性，你可以使用环境变量：
-```bash
-export DISCORD_WEBHOOK_URL="your_webhook_url"
-export WEIBO_API_KEY="your_api_key"  # 如果适用
-```
+- 抽取方式：`core/settings.py` → `EXTRACTION_METHOD`（默认 `"ajax_json"`，可改为 `"mobile_dom"`）
+- 速率限制：`core/settings.py` → `RATE_LIMIT_MAX_REQUESTS`、`RATE_LIMIT_TIME_WINDOW`
+- 超时与大小：`core/settings.py` → `REQUEST_TIMEOUT_SECONDS`、`IMAGE_MAX_DOWNLOAD_BYTES`、`DISCORD_ATTACHMENT_MAX_MB`
+- AJAX 等待时间：`core/settings.py` → `AJAX_WAIT_MS`
 
 ## 📊 监控和日志记录
 
@@ -156,124 +132,18 @@ export WEIBO_API_KEY="your_api_key"  # 如果适用
 - `WARNING`: 潜在问题的警告消息
 - `ERROR`: 包含完整上下文的错误消息
 
-## 🔍 获取微博 AJAX URL
+> 说明：机器人会在浏览器会话内自动发起 AJAX 请求，你无需手动收集或提供 AJAX URL。
 
-1. 在浏览器中打开微博账户页面
-2. 打开开发者工具 → 网络标签页
-3. 重新加载页面
-4. 查找 `mymblog` XHR 请求
-5. 复制请求 URL
+ 
 
-示例 AJAX URL：
-```
-https://weibo.com/ajax/statuses/mymblog?uid=7618923072&page=1&feature=0
-```
+> 临时 JSON 保存在 `weibo_tmp/` 下，随时可删除。数据库位于 `data/weibo.db`。
 
-**参数说明：**
-- `uid`: 微博账户用户 ID
-- `page`: 页码（通常为 1 以获取最新帖子）
-- `feature`: 内容过滤器（0=全部，1=原创，2=图片，3=视频，4=音乐）
+ 
 
-## 🛠️ 故障排除
-
-### 常见问题
-
-1. **Webhook 错误（413 负载过大）**
-   - 机器人自动压缩图片以保持在 Discord 限制内
-   - 检查日志了解压缩详情
-   - 图片调整到最大 1024x1024 像素
-
-2. **Chrome 驱动程序问题**
-   - 机器人自动下载和管理驱动程序
-   - 检查互联网连接以下载驱动程序
-   - 防病毒软件可能暂时阻止驱动程序下载
-
-3. **数据库错误**
-   - 删除 `weibo.db` 以重置数据库
-   - 检查项目目录中的文件权限
-   - 数据库自动清理旧记录
-
-4. **速率限制**
-   - 机器人包含内置速率限制（每分钟 5 个请求）
-   - 检查日志中的速率限制警告
-   - 如有需要，在 `security_config.toml` 中调整设置
-
-### Windows 特定问题
-
-1. **权限错误**
-   - 以管理员身份运行命令提示符/PowerShell
-   - 暂时禁用防病毒软件以下载驱动程序
-
-2. **Chrome 语音转录日志**
-   - 这些是正常的 Chrome 内部日志
-   - 机器人抑制大多数 Chrome 警告
-   - 日志不影响功能
-
-### 调试模式
-```bash
-# 测试配置和依赖项
-python test_app.py
-
-# 检查最近的数据库记录
-python -c "from app import DatabaseManager; db = DatabaseManager(); print(db.get_recent_ids(10))"
-```
-
-## 🔒 安全注意事项
-
-### Webhook 安全
-- 保持 webhook URL 私密和安全
-- 定期轮换 webhook URL
-- 监控 webhook 使用情况以发现未授权活动
-
-### 文件安全
-- 机器人仅从受信任的域名下载
-- 所有文件都经过内容类型和大小验证
-- 临时文件自动清理
-
-### 网络安全
-- 所有请求都使用 HTTPS
-- 速率限制防止 API 滥用
-- 请求超时防止连接挂起
-
-有关详细的安全信息，请参阅 [SECURITY.md](SECURITY.md)。
-
-## 📈 性能特性
-
-- **图片优化**: 自动压缩和调整大小
-- **数据库索引**: 使用适当索引的优化查询
-- **内存管理**: 自动清理旧记录和文件
-- **连接池**: 高效的数据库和网络连接
-- **批量操作**: 优化的数据库操作
-
-## 🤝 参与贡献
-
-欢迎贡献！请：
-1. Fork 仓库
-2. 创建功能分支
-3. 进行更改
-4. 如果适用，添加测试
-5. 提交拉取请求
-
-### 开发设置
-```bash
-git clone https://github.com/uiharu-kazari/weibo-discord-bot.git
-cd weibo-discord-bot
-pip install -r requirements.txt
-# 进行更改
-python test_app.py  # 运行测试
-```
+ 
 
 ## 📄 许可证
 
 本项目采用 MIT 许可证。详情请参阅 [LICENSE](LICENSE)。
 
-## 🙏 致谢
-
-- 微博提供平台
-- Discord 提供 webhook 功能
-- Selenium 提供网页自动化
-- 本项目的所有贡献者和用户
-
----
-
-**⚠️ 重要提示**: 此机器人仅供教育和个人使用。请尊重微博的服务条款和速率限制。机器人包含内置速率限制以尊重微博服务器。
+ 

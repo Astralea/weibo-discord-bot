@@ -24,6 +24,8 @@ This project is a Python-based bot that scans specified Weibo accounts and sends
 * **Enterprise Security**: Comprehensive security features and input validation
 * **Rate Limiting**: Built-in rate limiting to prevent API abuse
 * **Comprehensive Logging**: Detailed logging with file rotation and monitoring
+* **In-browser AJAX capture**: JSON is fetched inside Selenium; no manual AJAX URL required
+* **Optional mobile DOM extractor**: Change in code via `core/settings.py` → `EXTRACTION_METHOD`
 
 ## 🛡️ Security Features
 
@@ -52,44 +54,28 @@ This project is a Python-based bot that scans specified Weibo accounts and sends
 * Chrome or Firefox browser (for web scraping)
 * Internet connection (for automatic driver download)
 
-## 🚀 Installation
-
-### Windows (Recommended)
-
-1. **Quick Setup with Conda**
-   ```bash
-   git clone https://github.com/uiharu-kazari/weibo-discord-bot.git
-   cd weibo-discord-bot
-   setup_windows.bat
-   ```
-
-2. **Manual Setup**
-   ```bash
-   git clone https://github.com/uiharu-kazari/weibo-discord-bot.git
-   cd weibo-discord-bot
-   python setup_windows.py
-   ```
-
-### macOS/Linux
+## 🚀 Quick Start
 
 ```bash
 git clone https://github.com/uiharu-kazari/weibo-discord-bot.git
 cd weibo-discord-bot
 pip install -r requirements.txt
+cp config.toml.example config.toml
+# Edit config.toml minimally, then run:
+python app.py
 ```
 
 ## ⚙️ Configuration
 
 1. **Copy and edit configuration**
    ```bash
-   cp config_example.toml config.toml
+   cp config.toml.example config.toml
    ```
 
 2. **Edit `config.toml` with your settings**
    ```toml
    [weibo]
        [weibo.your_account_name]
-           ajax_url = "https://weibo.com/ajax/statuses/mymblog?uid=YOUR_UID&page=1&feature=0"
            read_link_url = "https://weibo.com/u/YOUR_UID"
            message_webhook = "YOUR_DISCORD_WEBHOOK_URL"
            avatar_url = "OPTIONAL_AVATAR_URL"
@@ -99,11 +85,9 @@ pip install -r requirements.txt
        message_webhook = "YOUR_STATUS_WEBHOOK_URL"
    ```
 
-3. **Optional: Configure security settings**
-   ```bash
-   # Edit security_config.toml for advanced security settings
-   # See SECURITY.md for detailed security documentation
-   ```
+- Method selection is set in code: edit `core/settings.py` and change `EXTRACTION_METHOD` to `"ajax_json"` or `"mobile_dom"`.
+
+ 
 
 ## 🎯 Usage
 
@@ -112,9 +96,8 @@ pip install -r requirements.txt
 python app.py
 ```
 
-### Production Deployment with PM2
+### Production (optional)
 ```bash
-# Configure ecosystem.config.js then run:
 pm2 start ecosystem.config.js
 ```
 
@@ -124,23 +107,12 @@ conda activate web
 python app.py
 ```
 
-## 🔧 Advanced Configuration
+## 🔧 Runtime tuning (edit in code)
 
-### Security Configuration
-The bot includes a comprehensive security configuration file (`security_config.toml`) with settings for:
-- Rate limiting parameters
-- File size limits
-- Timeout settings
-- Allowed domains and file extensions
-- Logging configuration
-- Anti-detection settings
-
-### Environment Variables
-For enhanced security, you can use environment variables:
-```bash
-export DISCORD_WEBHOOK_URL="your_webhook_url"
-export WEIBO_API_KEY="your_api_key"  # If applicable
-```
+- Extraction method: `core/settings.py` → `EXTRACTION_METHOD` (`"ajax_json"` default, or `"mobile_dom"`)
+- Rate limiting: `core/settings.py` → `RATE_LIMIT_MAX_REQUESTS`, `RATE_LIMIT_TIME_WINDOW`
+- Timeouts and sizes: `core/settings.py` → `REQUEST_TIMEOUT_SECONDS`, `IMAGE_MAX_DOWNLOAD_BYTES`, `DISCORD_ATTACHMENT_MAX_MB`
+- AJAX timing: `core/settings.py` → `AJAX_WAIT_MS`
 
 ## 📊 Monitoring & Logging
 
@@ -156,124 +128,18 @@ The bot provides comprehensive logging:
 - `WARNING`: Warning messages for potential issues
 - `ERROR`: Error messages with full context
 
-## 🔍 Obtaining Weibo AJAX URLs
+> Note: The bot performs the AJAX request inside the browser session automatically, so you don't need to collect or provide the AJAX URL.
 
-1. Open the Weibo account page in your browser
-2. Open Developer Tools → Network tab
-3. Reload the page
-4. Look for `mymblog` XHR request
-5. Copy the request URL
+ 
 
-Example AJAX URL:
-```
-https://weibo.com/ajax/statuses/mymblog?uid=7618923072&page=1&feature=0
-```
+> Temporary JSON captures are saved under `weibo_tmp/` and can be safely deleted anytime. Database is stored at `data/weibo.db`.
 
-**Parameters:**
-- `uid`: Weibo account User ID
-- `page`: Page number (usually 1 for recent posts)
-- `feature`: Content filter (0=all, 1=original, 2=images, 3=videos, 4=music)
+ 
 
-## 🛠️ Troubleshooting
-
-### Common Issues
-
-1. **Webhook Errors (413 Payload Too Large)**
-   - Bot automatically compresses images to stay under Discord limits
-   - Check logs for compression details
-   - Images are resized to max 1024x1024 pixels
-
-2. **Chrome Driver Issues**
-   - Bot automatically downloads and manages drivers
-   - Check internet connection for driver downloads
-   - Antivirus may block driver downloads temporarily
-
-3. **Database Errors**
-   - Delete `weibo.db` to reset database
-   - Check file permissions in project directory
-   - Database automatically cleans up old records
-
-4. **Rate Limiting**
-   - Bot includes built-in rate limiting (5 requests/minute)
-   - Check logs for rate limit warnings
-   - Adjust settings in `security_config.toml` if needed
-
-### Windows-Specific Issues
-
-1. **Permission Errors**
-   - Run Command Prompt/PowerShell as Administrator
-   - Temporarily disable antivirus for driver downloads
-
-2. **Chrome Voice Transcription Logs**
-   - These are normal Chrome internal logs
-   - Bot suppresses most Chrome warnings
-   - Logs don't affect functionality
-
-### Debug Mode
-```bash
-# Test configuration and dependencies
-python test_app.py
-
-# Check recent database records
-python -c "from app import DatabaseManager; db = DatabaseManager(); print(db.get_recent_ids(10))"
-```
-
-## 🔒 Security Considerations
-
-### Webhook Security
-- Keep webhook URLs private and secure
-- Regularly rotate webhook URLs
-- Monitor webhook usage for unauthorized activity
-
-### File Security
-- Bot only downloads from trusted domains
-- All files are validated for content type and size
-- Temporary files are automatically cleaned up
-
-### Network Security
-- All requests use HTTPS
-- Rate limiting prevents API abuse
-- Request timeouts prevent hanging connections
-
-For detailed security information, see [SECURITY.md](SECURITY.md).
-
-## 📈 Performance Features
-
-- **Image Optimization**: Automatic compression and resizing
-- **Database Indexing**: Optimized queries with proper indexing
-- **Memory Management**: Automatic cleanup of old records and files
-- **Connection Pooling**: Efficient database and network connections
-- **Batch Operations**: Optimized database operations
-
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-### Development Setup
-```bash
-git clone https://github.com/uiharu-kazari/weibo-discord-bot.git
-cd weibo-discord-bot
-pip install -r requirements.txt
-# Make your changes
-python test_app.py  # Run tests
-```
+ 
 
 ## 📄 License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
-## 🙏 Acknowledgments
-
-- Weibo for providing the platform
-- Discord for webhook functionality
-- Selenium for web automation
-- All contributors and users of this project
-
----
-
-**⚠️ Important**: This bot is for educational and personal use. Please respect Weibo's terms of service and rate limits. The bot includes built-in rate limiting to be respectful to Weibo's servers.
+ 

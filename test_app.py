@@ -44,7 +44,7 @@ def test_imports():
         return False
     
     try:
-        from image_collage import combine_images, resize_gif
+        from core.media.image_collage import combine_images, resize_gif
         print("✓ image_collage imported successfully")
     except ImportError as e:
         print(f"✗ Failed to import image_collage: {e}")
@@ -76,7 +76,7 @@ def test_config():
         
         return True
     except FileNotFoundError:
-        print("✗ config.toml not found. Please copy config_example.toml to config.toml")
+        print("✗ config.toml not found. Please copy config.toml.example to config.toml")
         return False
     except Exception as e:
         print(f"✗ Error loading config: {e}")
@@ -113,10 +113,11 @@ def test_database():
     
     try:
         import sqlite3
-        from app import DatabaseManager
+        from core.database import DatabaseManager
         
         # Test database creation
-        db_manager = DatabaseManager('test.db')
+        Path('data').mkdir(exist_ok=True)
+        db_manager = DatabaseManager('data/test.db')
         print("✓ Database manager created successfully")
         
         # Test ID operations
@@ -149,7 +150,7 @@ def test_image_manager():
     print("\nTesting image manager...")
     
     try:
-        from app import ImageManager
+        from core.image_manager import ImageManager
         from pathlib import Path
         
         # Create test image directory
@@ -177,7 +178,7 @@ def test_webdriver_manager():
     print("\nTesting webdriver manager...")
     
     try:
-        from app import WebDriverManager
+        from core.webdriver_manager import WebDriverManager
         import platform
         
         system = platform.system()
