@@ -229,7 +229,19 @@ class WeiboScraper:
         if dt is None:
             dt = now
         discord_timestamp = dt.timestamp()
-        embed = DiscordEmbed(title=title, description=text_raw, color=embed_color, url=endpoints.get('read_link_url', ''))
+        # Prefer per-post URL. Use mobile detail link for best accessibility; fall back to desktop post; then profile URL.
+        post_url = endpoints.get('read_link_url', '')
+        try:
+            uid = str(((item.get('user') or {}).get('id') or (item.get('user') or {}).get('idstr') or '')).strip()
+            mblogid = (item.get('mblogid') or '').strip() if isinstance(item.get('mblogid'), str) else None
+            idstr = str(item.get('idstr') or item.get('mid') or item.get('id') or '').strip()
+            if idstr and idstr.isdigit():
+                post_url = f"https://m.weibo.cn/detail/{idstr}"
+            elif mblogid and uid:
+                post_url = f"https://weibo.com/{uid}/{mblogid}"
+        except Exception:
+            pass
+        embed = DiscordEmbed(title=title, description=text_raw, color=embed_color, url=post_url)
         embed.set_footer(text=f"来自 {source}")
         try:
             embed.set_timestamp(discord_timestamp)
