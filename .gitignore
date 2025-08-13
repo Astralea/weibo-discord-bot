@@ -9,17 +9,21 @@ __pycache__/
 # toml files
 *.toml
 # include config_sample.toml
-!config_example.toml
+!config.toml.example
+!cookies.toml
 
+node_modules/
+
+package-lock.json
 
 # custom files
-test.ipynb
 weibo.db
-gpt_utility.py
-hotlink_protected_image_download.ipynb
-image_collage.ipynb
+weibo.db-*
 *.db
 *.pid
+weibo_tmp/
+data/
+weibo_bot.log
 # *.json
 
 # images

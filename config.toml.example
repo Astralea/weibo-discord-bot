@@ -1,6 +1,5 @@
 [weibo]
     [weibo.genshin_impact]
-        ajax_url = "https://weibo.com/ajax/statuses/mymblog?uid=6593199887&page=1&feature=0"
         read_link_url = "https://weibo.com/u/6593199887"
         message_webhook = "YOUR_WEBHOOK_URL"
         avatar_url = "https://i.ibb.co/cbkGdL9/logo-92036cc.png"
