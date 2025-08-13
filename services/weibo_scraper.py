@@ -229,16 +229,11 @@ class WeiboScraper:
         if dt is None:
             dt = now
         discord_timestamp = dt.timestamp()
-        # Prefer per-post URL. Use mobile detail link for best accessibility; fall back to desktop post; then profile URL.
+        # Always use desktop detail URL for the post
         post_url = endpoints.get('read_link_url', '')
         try:
-            uid = str(((item.get('user') or {}).get('id') or (item.get('user') or {}).get('idstr') or '')).strip()
-            mblogid = (item.get('mblogid') or '').strip() if isinstance(item.get('mblogid'), str) else None
             idstr = str(item.get('idstr') or item.get('mid') or item.get('id') or '').strip()
-            if idstr and idstr.isdigit():
-                post_url = f"https://m.weibo.cn/detail/{idstr}"
-            elif mblogid and uid:
-                post_url = f"https://weibo.com/{uid}/{mblogid}"
+            post_url = f"https://weibo.com/detail/{idstr}"
         except Exception:
             pass
         embed = DiscordEmbed(title=title, description=text_raw, color=embed_color, url=post_url)
@@ -475,21 +470,12 @@ class WeiboScraper:
 
     def parse_item_with_video(self, item: Dict[str, Any], embed: DiscordEmbed, endpoints: Dict[str, str]) -> int:
         try:
-            media_info = (item.get('page_info') or {}).get('media_info') or {}
-            video_url = media_info.get('stream_url') or media_info.get('mp4_720p_mp4') or media_info.get('mp4_hd_url')
-            if not video_url:
-                return self.parse_item_text_only(item, embed, endpoints)
+            # Do not send the separate video URL to Discord due to Weibo restrictions.
+            # Only send the embed (with per-post URL) so users can click through.
             webhook_message = self.create_webhook_instance(endpoints)
-            video_webhook = self.create_webhook_instance(endpoints, content=video_url)
             webhook_message.add_embed(embed)
-            response1 = webhook_message.execute()
-            response2 = video_webhook.execute()
-            if response1.status_code < 300 and response2.status_code < 300:
-                return 200
-            elif response1.status_code < 300:
-                return response2.status_code
-            else:
-                return response1.status_code
+            response = webhook_message.execute()
+            return response.status_code
         except Exception as e:
             logger.error(f"Error processing video: {e}")
             return self.parse_item_text_only(item, embed, endpoints)
