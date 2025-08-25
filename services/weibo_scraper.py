@@ -80,6 +80,111 @@ class WeiboScraper:
             return m.group(1)
         return None
 
+    def _handle_navigation_error(self, driver, url: str, max_retries: int = 3) -> bool:
+        """Handle navigation errors including redirect loops with multiple strategies"""
+        for attempt in range(max_retries):
+            try:
+                logger.warning(f"Navigation error on attempt {attempt + 1}/{max_retries} for {url}")
+                
+                # Strategy 1: Clear cookies and cache
+                driver.delete_all_cookies()
+                driver.execute_script("window.localStorage.clear();")
+                driver.execute_script("window.sessionStorage.clear();")
+                
+                # Strategy 2: Add random delay to avoid rate limiting
+                time.sleep(random.uniform(5, 15))
+                
+                # Strategy 3: Try different user agent
+                if attempt == 1:
+                    driver.execute_script("Object.defineProperty(navigator, 'userAgent', {get: () => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})")
+                
+                # Strategy 4: Try mobile URL if desktop fails
+                if attempt == 2 and '/u/' in url:
+                    mobile_url = url.replace('weibo.com/u/', 'm.weibo.cn/u/')
+                    logger.info(f"Trying mobile URL: {mobile_url}")
+                    driver.get(mobile_url)
+                else:
+                    driver.get(url)
+                
+                # Wait for page to load
+                time.sleep(3)
+                
+                # Check if we're still in an error page
+                current_url = driver.current_url
+                if 'neterror' not in current_url and 'about:' not in current_url:
+                    logger.info(f"Successfully navigated to {current_url}")
+                    return True
+                    
+            except Exception as e:
+                logger.warning(f"Navigation retry {attempt + 1} failed: {e}")
+                time.sleep(2)
+        
+        logger.error(f"Failed to navigate to {url} after {max_retries} attempts")
+        return False
+
+    def _is_error_page(self, driver) -> bool:
+        """Check if current page is an error page"""
+        try:
+            current_url = driver.current_url
+            page_source = driver.page_source.lower()
+            
+            # Check for various error indicators
+            error_indicators = [
+                'neterror',
+                'about:',
+                'redirectloop',
+                'error page',
+                '无法访问',
+                'redirect loop'
+            ]
+            
+            for indicator in error_indicators:
+                if indicator in current_url.lower() or indicator in page_source:
+                    return True
+                    
+            return False
+        except Exception:
+            return True
+
+    def _handle_geographic_restrictions(self, driver, account_name: str) -> bool:
+        """Handle potential geographic restrictions for specific accounts"""
+        if account_name == 'genshin_impact':
+            logger.info("Attempting to handle potential geographic restrictions for genshin_impact account")
+            
+            # Try using a different approach for this account
+            try:
+                # Clear all browser data
+                driver.delete_all_cookies()
+                driver.execute_script("window.localStorage.clear();")
+                driver.execute_script("window.sessionStorage.clear();")
+                
+                # Try to access through a different entry point
+                test_urls = [
+                    "https://m.weibo.cn/u/6593199887",
+                    "https://weibo.com/u/6593199887?is_all=1",
+                    "https://weibo.com/u/6593199887?tabtype=weibo"
+                ]
+                
+                for test_url in test_urls:
+                    try:
+                        logger.info(f"Trying alternative URL: {test_url}")
+                        driver.get(test_url)
+                        time.sleep(5)
+                        
+                        current_url = driver.current_url
+                        if 'neterror' not in current_url and 'about:' not in current_url:
+                            logger.info(f"Successfully accessed through alternative URL: {current_url}")
+                            return True
+                            
+                    except Exception as e:
+                        logger.warning(f"Failed to access {test_url}: {e}")
+                        continue
+                        
+            except Exception as e:
+                logger.warning(f"Error handling geographic restrictions: {e}")
+                
+        return False
+
     def get_weibo_content_once(self, endpoints: Dict[str, str]) -> Optional[List[Dict[str, Any]]]:
         self.rate_limiter.wait_if_needed()
         if not self._is_driver_alive():
@@ -87,24 +192,56 @@ class WeiboScraper:
 
         main_url = endpoints['read_link_url']
         method = EXTRACTION_METHOD
+        account_name = endpoints.get('account_name', 'unknown')
+
+        # Check if we're on an error page and try to recover
+        if self._is_error_page(self.driver):
+            logger.warning("Detected error page, attempting recovery...")
+            if not self._handle_navigation_error(self.driver, main_url):
+                # Try geographic restriction handling as fallback
+                if self._handle_geographic_restrictions(self.driver, account_name):
+                    logger.info("Recovered through geographic restriction handling")
+                else:
+                    logger.error("Failed to recover from error page")
+                    return None
 
         if method == 'ajax_json':
             uid = self._extract_uid_from_url(main_url)
             if not uid:
-                self.driver.get(main_url)
-                time.sleep(2)
+                # Try to navigate to the main URL first
                 try:
+                    if not self._handle_navigation_error(self.driver, main_url):
+                        # Try geographic restriction handling as fallback
+                        if self._handle_geographic_restrictions(self.driver, account_name):
+                            logger.info("Recovered through geographic restriction handling")
+                        else:
+                            logger.error(f"Failed to navigate to {main_url}")
+                            return None
+                    
+                    time.sleep(2)
                     val = self.driver.execute_script("return (window.$CONFIG && $CONFIG.uid) || (window.CONFIG && window.CONFIG.uid) || '';")
                     if val and str(val).isdigit():
                         uid = str(val)
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"Failed to extract UID from page: {e}")
                     pass
+                    
             if not uid:
                 logger.error('Cannot derive uid from read_link_url for ajax_json method')
                 return None
 
             # Always use canonical profile URL like the test script
             profile_url = f"https://weibo.com/u/{uid}"
+            
+            # Try to navigate to profile URL with error handling
+            if not self._handle_navigation_error(self.driver, profile_url):
+                # Try geographic restriction handling as fallback
+                if self._handle_geographic_restrictions(self.driver, account_name):
+                    logger.info("Recovered through geographic restriction handling")
+                else:
+                    logger.error(f"Failed to navigate to profile URL: {profile_url}")
+                    return None
+            
             raw = extract_ajax_json(self.driver, profile_url, uid, wait_before_ms=settings.AJAX_WAIT_MS)
             if not raw or not raw.strip():
                 logger.error('AJAX capture returned empty or no JSON')
@@ -134,24 +271,107 @@ class WeiboScraper:
                 logger.error('Cannot derive uid from read_link_url for mobile_dom method')
                 return None
             mobile_url = f'https://m.weibo.cn/u/{uid}'
+            
+            # Try mobile URL with error handling
+            if not self._handle_navigation_error(self.driver, mobile_url):
+                # Try geographic restriction handling as fallback
+                if self._handle_geographic_restrictions(self.driver, account_name):
+                    logger.info("Recovered through geographic restriction handling")
+                else:
+                    logger.error(f"Failed to navigate to mobile URL: {mobile_url}")
+                    return None
+                
             return extract_mobile_dom_as_list(self.driver, mobile_url, max_scrolls=8)
 
         logger.error(f'Unknown extraction method: {method}')
         return None
 
+    def _rotate_session(self):
+        """Rotate the current session to avoid detection"""
+        try:
+            logger.info("Rotating session to avoid detection...")
+            
+            # Clear all browser data
+            self.driver.delete_all_cookies()
+            self.driver.execute_script("window.localStorage.clear();")
+            self.driver.execute_script("window.sessionStorage.clear();")
+            
+            # Add random delay to simulate human behavior
+            time.sleep(random.uniform(2, 8))
+            
+            # Recreate driver with fresh session
+            self._recreate_driver()
+            
+            # Set random viewport size to appear more human
+            viewport_sizes = [
+                (1920, 1080), (1366, 768), (1440, 900), 
+                (1536, 864), (1280, 720), (1600, 900)
+            ]
+            width, height = random.choice(viewport_sizes)
+            self.driver.set_window_size(width, height)
+            
+            logger.info("Session rotation completed")
+            
+        except Exception as e:
+            logger.warning(f"Error during session rotation: {e}")
+
+    def _add_human_like_delays(self):
+        """Add random delays to simulate human behavior"""
+        # Random delay between 1-5 seconds
+        delay = random.uniform(1, 5)
+        time.sleep(delay)
+
     def get_weibo_content_loop(self, endpoints: Dict[str, str]) -> Optional[List[Dict[str, Any]]]:
         max_retries = 10
         retry_count = 0
-        logger.info(f'Getting Weibo content... @ {datetime.now()}')
+        account_name = endpoints.get('account_name', 'unknown')
+        logger.info(f'Getting Weibo content for {account_name}... @ {datetime.now()}')
+        
         while retry_count < max_retries:
-            content = self.get_weibo_content_once(endpoints)
-            if content:
-                logger.info(f'Successfully retrieved {len(content)} posts')
-                return content
-            retry_count += 1
-            logger.warning(f'Retrying... ({retry_count}/{max_retries})')
-            time.sleep(90)
-        logger.error('Failed to get content after maximum retries')
+            try:
+                # Add human-like delays
+                self._add_human_like_delays()
+                
+                content = self.get_weibo_content_once(endpoints)
+                if content:
+                    logger.info(f'Successfully retrieved {len(content)} posts for {account_name}')
+                    return content
+                    
+                retry_count += 1
+                if retry_count < max_retries:
+                    # Progressive backoff with jitter
+                    base_delay = min(90 * (2 ** (retry_count - 1)), 300)  # Max 5 minutes
+                    jitter = random.uniform(0.8, 1.2)
+                    delay = base_delay * jitter
+                    logger.warning(f'Retrying {account_name} in {delay:.1f}s... ({retry_count}/{max_retries})')
+                    time.sleep(delay)
+                    
+                    # For redirect loop errors, try recreating the driver
+                    if retry_count % 3 == 0:
+                        logger.info(f'Recreating driver for {account_name} due to repeated failures')
+                        self._recreate_driver()
+                        
+                    # Rotate session every few retries to avoid detection
+                    if retry_count % 2 == 0:
+                        self._rotate_session()
+                        
+            except Exception as e:
+                retry_count += 1
+                logger.error(f'Error getting content for {account_name} (attempt {retry_count}/{max_retries}): {e}')
+                
+                if retry_count < max_retries:
+                    # Shorter delay for exceptions
+                    delay = min(30 * retry_count, 120)
+                    logger.warning(f'Retrying {account_name} in {delay}s after exception...')
+                    time.sleep(delay)
+                    
+                    # Always recreate driver after exceptions
+                    self._recreate_driver()
+                    
+                    # Rotate session after exceptions
+                    self._rotate_session()
+                    
+        logger.error(f'Failed to get content for {account_name} after {max_retries} attempts')
         return None
 
     def scan(self, endpoints: Dict[str, str]):
@@ -274,6 +494,13 @@ class WeiboScraper:
                 try:
                     endpoints = self.config['weibo'][account].copy()
                     endpoints['account_name'] = account
+                    
+                    # Check if account is disabled
+                    if endpoints.get('disabled', False):
+                        disabled_reason = endpoints.get('disabled_reason', 'No reason specified')
+                        logger.info(f"Skipping disabled account {account}: {disabled_reason}")
+                        continue
+                        
                     self.scan(endpoints)
                 except Exception as e:
                     logger.error(f"Error scanning account {account}: {e}")
@@ -295,6 +522,13 @@ class WeiboScraper:
             try:
                 endpoints = self.config['weibo'][account].copy()
                 endpoints['account_name'] = account
+                
+                # Check if account is disabled
+                if endpoints.get('disabled', False):
+                    disabled_reason = endpoints.get('disabled_reason', 'No reason specified')
+                    logger.info(f"Skipping disabled account {account}: {disabled_reason}")
+                    continue
+                    
                 self.scan(endpoints)
             except Exception as e:
                 logger.error(f"Error scanning account {account}: {e}")
