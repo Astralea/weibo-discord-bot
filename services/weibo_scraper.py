@@ -86,10 +86,21 @@ class WeiboScraper:
             try:
                 logger.warning(f"Navigation error on attempt {attempt + 1}/{max_retries} for {url}")
                 
-                # Strategy 1: Clear cookies and cache
-                driver.delete_all_cookies()
-                driver.execute_script("window.localStorage.clear();")
-                driver.execute_script("window.sessionStorage.clear();")
+                # Strategy 1: Clear cookies and cache (safely)
+                try:
+                    driver.delete_all_cookies()
+                except Exception as e:
+                    logger.warning(f"Failed to clear cookies: {e}")
+                
+                try:
+                    driver.execute_script("window.localStorage.clear();")
+                except Exception as e:
+                    logger.warning(f"Failed to clear localStorage: {e}")
+                
+                try:
+                    driver.execute_script("window.sessionStorage.clear();")
+                except Exception as e:
+                    logger.warning(f"Failed to clear sessionStorage: {e}")
                 
                 # Strategy 2: Add random delay to avoid rate limiting
                 time.sleep(random.uniform(5, 15))
@@ -99,8 +110,17 @@ class WeiboScraper:
                     driver.execute_script("Object.defineProperty(navigator, 'userAgent', {get: () => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})")
                 
                 # Strategy 4: Try mobile URL if desktop fails
-                if attempt == 2 and '/u/' in url:
-                    mobile_url = url.replace('weibo.com/u/', 'm.weibo.cn/u/')
+                if attempt == 2 and ('weibo.com/u/' in url or 'weibo.com/' in url):
+                    if '/u/' in url:
+                        mobile_url = url.replace('weibo.com/u/', 'm.weibo.cn/u/')
+                    else:
+                        # Extract UID from URL like https://weibo.com/7618923072
+                        uid_match = re.search(r'weibo\.com/(\d+)', url)
+                        if uid_match:
+                            uid = uid_match.group(1)
+                            mobile_url = f"https://m.weibo.cn/u/{uid}"
+                        else:
+                            mobile_url = url
                     logger.info(f"Trying mobile URL: {mobile_url}")
                     driver.get(mobile_url)
                 else:
@@ -111,7 +131,7 @@ class WeiboScraper:
                 
                 # Check if we're still in an error page
                 current_url = driver.current_url
-                if 'neterror' not in current_url and 'about:' not in current_url:
+                if not self._is_error_page(driver):
                     logger.info(f"Successfully navigated to {current_url}")
                     return True
                     
@@ -131,16 +151,31 @@ class WeiboScraper:
             # Check for various error indicators
             error_indicators = [
                 'neterror',
-                'about:',
                 'redirectloop',
                 'error page',
                 '无法访问',
                 'redirect loop'
             ]
             
+            # Check for actual error pages (not just pages with "about:" text)
             for indicator in error_indicators:
                 if indicator in current_url.lower() or indicator in page_source:
                     return True
+            
+            # Check for "about:" only if it's in the URL (not in page content)
+            if 'about:' in current_url.lower():
+                return True
+            
+            # Check if page has meaningful content (not an error page)
+            if len(page_source) < 1000:  # Very short pages are likely error pages
+                return True
+            
+            # Check if we can find Weibo-specific content
+            weibo_indicators = ['weibo', '微博', 'feed', 'card', 'profile']
+            has_weibo_content = any(indicator in page_source for indicator in weibo_indicators)
+            
+            if not has_weibo_content and len(page_source) < 5000:
+                return True
                     
             return False
         except Exception:
@@ -194,21 +229,16 @@ class WeiboScraper:
         method = EXTRACTION_METHOD
         account_name = endpoints.get('account_name', 'unknown')
 
-        # Check if we're on an error page and try to recover
-        if self._is_error_page(self.driver):
-            logger.warning("Detected error page, attempting recovery...")
-            if not self._handle_navigation_error(self.driver, main_url):
-                # Try geographic restriction handling as fallback
-                if self._handle_geographic_restrictions(self.driver, account_name):
-                    logger.info("Recovered through geographic restriction handling")
-                else:
-                    logger.error("Failed to recover from error page")
-                    return None
+        # Don't check for error page here - the driver is fresh and hasn't navigated yet
 
         if method == 'ajax_json':
+            # Extract UID from URL first
             uid = self._extract_uid_from_url(main_url)
+            logger.info(f"Extracted UID from URL: {uid}")
+            
+            # If we can't extract UID from URL, try to navigate to the main URL first
             if not uid:
-                # Try to navigate to the main URL first
+                logger.info(f"Could not extract UID from URL, trying to navigate to: {main_url}")
                 try:
                     if not self._handle_navigation_error(self.driver, main_url):
                         # Try geographic restriction handling as fallback
@@ -222,6 +252,7 @@ class WeiboScraper:
                     val = self.driver.execute_script("return (window.$CONFIG && $CONFIG.uid) || (window.CONFIG && window.CONFIG.uid) || '';")
                     if val and str(val).isdigit():
                         uid = str(val)
+                        logger.info(f"Extracted UID from page: {uid}")
                 except Exception as e:
                     logger.warning(f"Failed to extract UID from page: {e}")
                     pass
@@ -230,19 +261,30 @@ class WeiboScraper:
                 logger.error('Cannot derive uid from read_link_url for ajax_json method')
                 return None
 
-            # Always use canonical profile URL like the test script
-            profile_url = f"https://weibo.com/u/{uid}"
+            # Try mobile URL first for better success rate
+            mobile_url = f"https://m.weibo.cn/u/{uid}"
+            logger.info(f"Trying mobile URL first: {mobile_url}")
             
-            # Try to navigate to profile URL with error handling
-            if not self._handle_navigation_error(self.driver, profile_url):
-                # Try geographic restriction handling as fallback
-                if self._handle_geographic_restrictions(self.driver, account_name):
-                    logger.info("Recovered through geographic restriction handling")
-                else:
-                    logger.error(f"Failed to navigate to profile URL: {profile_url}")
-                    return None
-            
-            raw = extract_ajax_json(self.driver, profile_url, uid, wait_before_ms=settings.AJAX_WAIT_MS)
+            if self._handle_navigation_error(self.driver, mobile_url):
+                logger.info("Successfully navigated to mobile URL")
+                # For mobile URLs, use mobile DOM extractor instead of AJAX
+                logger.info("Using mobile DOM extractor for mobile URL")
+                return extract_mobile_dom_as_list(self.driver, mobile_url, max_scrolls=8)
+            else:
+                # Fallback to desktop URL
+                profile_url = f"https://weibo.com/u/{uid}"
+                logger.info(f"Mobile URL failed, trying desktop: {profile_url}")
+                
+                if not self._handle_navigation_error(self.driver, profile_url):
+                    # Try geographic restriction handling as fallback
+                    if self._handle_geographic_restrictions(self.driver, account_name):
+                        logger.info("Recovered through geographic restriction handling")
+                    else:
+                        logger.error(f"Failed to navigate to profile URL: {profile_url}")
+                        return None
+                
+                # Use desktop URL for AJAX extraction
+                raw = extract_ajax_json(self.driver, profile_url, uid, wait_before_ms=settings.AJAX_WAIT_MS)
             if not raw or not raw.strip():
                 logger.error('AJAX capture returned empty or no JSON')
                 return None
