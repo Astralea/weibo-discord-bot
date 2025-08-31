@@ -29,9 +29,6 @@ from extractors.mobile_dom_extractor import extract_mobile_dom_as_list
 
 logger = logging.getLogger(__name__)
 
-from core.settings import EXTRACTION_METHOD
-
-
 class WeiboScraper:
     def __init__(self, config: Dict[str, Any], account_names: List[str] = 'auto'):
         self.config = config
@@ -220,32 +217,27 @@ class WeiboScraper:
                 
         return False
 
-    def get_weibo_content_once(self, endpoints: Dict[str, str]) -> Optional[List[Dict[str, Any]]]:
+    def get_weibo_content_once(self, endpoints: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
         self.rate_limiter.wait_if_needed()
         if not self._is_driver_alive():
             self._recreate_driver()
-
-        main_url = endpoints['read_link_url']
-        method = EXTRACTION_METHOD
-        account_name = endpoints.get('account_name', 'unknown')
-
-        # Don't check for error page here - the driver is fresh and hasn't navigated yet
-
-        if method == 'ajax_json':
-            # Extract UID from URL first
-            uid = self._extract_uid_from_url(main_url)
-            logger.info(f"Extracted UID from URL: {uid}")
             
-            # If we can't extract UID from URL, try to navigate to the main URL first
+        method = settings.EXTRACTION_METHOD
+        main_url = endpoints.get('read_link_url', '')
+        
+        if method == 'ajax_json':
+            uid = self._extract_uid_from_url(main_url)
             if not uid:
-                logger.info(f"Could not extract UID from URL, trying to navigate to: {main_url}")
+                # Try to extract UID from the page itself
                 try:
-                    if not self._handle_navigation_error(self.driver, main_url):
+                    # Navigate to the profile page first
+                    profile_url = f"https://weibo.com/u/{uid}" if uid else main_url
+                    if not self._handle_navigation_error(self.driver, profile_url):
                         # Try geographic restriction handling as fallback
-                        if self._handle_geographic_restrictions(self.driver, account_name):
+                        if self._handle_geographic_restrictions(self.driver, endpoints.get('account_name', 'unknown')):
                             logger.info("Recovered through geographic restriction handling")
                         else:
-                            logger.error(f"Failed to navigate to {main_url}")
+                            logger.error(f"Failed to navigate to profile URL: {profile_url}")
                             return None
                     
                     time.sleep(2)
@@ -261,30 +253,20 @@ class WeiboScraper:
                 logger.error('Cannot derive uid from read_link_url for ajax_json method')
                 return None
 
-            # Try mobile URL first for better success rate
-            mobile_url = f"https://m.weibo.cn/u/{uid}"
-            logger.info(f"Trying mobile URL first: {mobile_url}")
+            # Use desktop URL directly for AJAX extraction - no mobile fallback
+            profile_url = f"https://weibo.com/u/{uid}"
+            logger.info(f"Using desktop URL for AJAX extraction: {profile_url}")
             
-            if self._handle_navigation_error(self.driver, mobile_url):
-                logger.info("Successfully navigated to mobile URL")
-                # For mobile URLs, use mobile DOM extractor instead of AJAX
-                logger.info("Using mobile DOM extractor for mobile URL")
-                return extract_mobile_dom_as_list(self.driver, mobile_url, max_scrolls=8)
-            else:
-                # Fallback to desktop URL
-                profile_url = f"https://weibo.com/u/{uid}"
-                logger.info(f"Mobile URL failed, trying desktop: {profile_url}")
-                
-                if not self._handle_navigation_error(self.driver, profile_url):
-                    # Try geographic restriction handling as fallback
-                    if self._handle_geographic_restrictions(self.driver, account_name):
-                        logger.info("Recovered through geographic restriction handling")
-                    else:
-                        logger.error(f"Failed to navigate to profile URL: {profile_url}")
-                        return None
-                
-                # Use desktop URL for AJAX extraction
-                raw = extract_ajax_json(self.driver, profile_url, uid, wait_before_ms=settings.AJAX_WAIT_MS)
+            if not self._handle_navigation_error(self.driver, profile_url):
+                # Try geographic restriction handling as fallback
+                if self._handle_geographic_restrictions(self.driver, endpoints.get('account_name', 'unknown')):
+                    logger.info("Recovered through geographic restriction handling")
+                else:
+                    logger.error(f"Failed to navigate to profile URL: {profile_url}")
+                    return None
+            
+            # Use desktop URL for AJAX extraction
+            raw = extract_ajax_json(self.driver, profile_url, uid, wait_before_ms=settings.AJAX_WAIT_MS)
             if not raw or not raw.strip():
                 logger.error('AJAX capture returned empty or no JSON')
                 return None
@@ -317,7 +299,7 @@ class WeiboScraper:
             # Try mobile URL with error handling
             if not self._handle_navigation_error(self.driver, mobile_url):
                 # Try geographic restriction handling as fallback
-                if self._handle_geographic_restrictions(self.driver, account_name):
+                if self._handle_geographic_restrictions(self.driver, endpoints.get('account_name', 'unknown')):
                     logger.info("Recovered through geographic restriction handling")
                 else:
                     logger.error(f"Failed to navigate to mobile URL: {mobile_url}")
@@ -424,14 +406,24 @@ class WeiboScraper:
         processed_count = 0
         for item in reversed(content):
             try:
-                if self.db_manager.check_and_add_id(item['id']):
-                    self.parse_item(item, endpoints)
-                    processed_count += 1
-                    time.sleep(10)
+                item_id = item.get('id')
+                if item_id:
+                    logger.debug(f"Checking item ID: {item_id} (type: {type(item_id)})")
+                    if self.db_manager.check_and_add_id(item_id):
+                        logger.info(f"Processing new item ID: {item_id}")
+                        self.parse_item(item, endpoints)
+                        processed_count += 1
+                        time.sleep(10)
+                    else:
+                        logger.debug(f"Item ID {item_id} already processed, skipping")
+                else:
+                    logger.warning(f"Item missing ID field: {item.get('text_raw', '')[:50]}...")
             except Exception as e:
                 logger.error(f"Error processing item {item.get('id', 'unknown')}: {e}")
         if processed_count > 0:
             logger.info(f'Processed {processed_count} new posts')
+        else:
+            logger.info('No new posts found - all posts already processed')
 
     def create_webhook_instance(self, endpoints: Dict[str, str], **kwargs) -> DiscordWebhook:
         webhook_url = endpoints.get('message_webhook')
