@@ -228,45 +228,14 @@ class WeiboScraper:
         if method == 'ajax_json':
             uid = self._extract_uid_from_url(main_url)
             if not uid:
-                # Try to extract UID from the page itself
-                try:
-                    # Navigate to the profile page first
-                    profile_url = f"https://weibo.com/u/{uid}" if uid else main_url
-                    if not self._handle_navigation_error(self.driver, profile_url):
-                        # Try geographic restriction handling as fallback
-                        if self._handle_geographic_restrictions(self.driver, endpoints.get('account_name', 'unknown')):
-                            logger.info("Recovered through geographic restriction handling")
-                        else:
-                            logger.error(f"Failed to navigate to profile URL: {profile_url}")
-                            return None
-                    
-                    time.sleep(2)
-                    val = self.driver.execute_script("return (window.$CONFIG && $CONFIG.uid) || (window.CONFIG && window.CONFIG.uid) || '';")
-                    if val and str(val).isdigit():
-                        uid = str(val)
-                        logger.info(f"Extracted UID from page: {uid}")
-                except Exception as e:
-                    logger.warning(f"Failed to extract UID from page: {e}")
-                    pass
-                    
-            if not uid:
                 logger.error('Cannot derive uid from read_link_url for ajax_json method')
                 return None
 
-            # Use desktop URL directly for AJAX extraction - no mobile fallback
-            profile_url = f"https://weibo.com/u/{uid}"
-            logger.info(f"Using desktop URL for AJAX extraction: {profile_url}")
-            
-            if not self._handle_navigation_error(self.driver, profile_url):
-                # Try geographic restriction handling as fallback
-                if self._handle_geographic_restrictions(self.driver, endpoints.get('account_name', 'unknown')):
-                    logger.info("Recovered through geographic restriction handling")
-                else:
-                    logger.error(f"Failed to navigate to profile URL: {profile_url}")
-                    return None
-            
-            # Use desktop URL for AJAX extraction
-            raw = extract_ajax_json(self.driver, profile_url, uid, wait_before_ms=settings.AJAX_WAIT_MS)
+            # Use mobile API (desktop API now requires login and returns 403)
+            # extract_ajax_json handles navigation to mobile site internally
+            logger.info(f"Using mobile API for UID: {uid}")
+
+            raw = extract_ajax_json(self.driver, main_url, uid, wait_before_ms=settings.AJAX_WAIT_MS)
             if not raw or not raw.strip():
                 logger.error('AJAX capture returned empty or no JSON')
                 return None
