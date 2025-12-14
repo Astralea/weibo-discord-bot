@@ -16,7 +16,15 @@ def extract_mobile_dom_as_list(driver: webdriver.Remote, mobile_url: str, max_sc
             return (function(){
               function txt(el){return el? (el.innerText||el.textContent||'').trim():''}
               function strip(html){var d=document.createElement('div'); d.innerHTML=html||''; return (d.textContent||d.innerText||'').trim()}
-              var cards = Array.from(document.querySelectorAll('.card')).filter(function(c){return c.querySelector('.weibo-text')});
+              var cards = Array.from(document.querySelectorAll('.card')).filter(function(c){
+                if (!c.querySelector('.weibo-text')) return false;
+                // Skip pinned/top posts (置顶)
+                var topEl = c.querySelector('.weibo-top, .card-top, .top-tag');
+                if (topEl && (topEl.innerText||'').indexOf('置顶') !== -1) return false;
+                var cardText = c.innerText || '';
+                if (cardText.indexOf('置顶') !== -1 && cardText.indexOf('置顶') < 50) return false;
+                return true;
+              });
               var out=[];
               cards.forEach(function(c,idx){
                 try{

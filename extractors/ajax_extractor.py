@@ -134,6 +134,10 @@ def to_list_from_ajax_json(raw: str) -> Optional[List[Dict[str, Any]]]:
                 if isinstance(card, dict) and 'mblog' in card:
                     mblog = card['mblog']
                     if isinstance(mblog, dict):
+                        # Skip pinned/top posts (identified by title.text == '置顶')
+                        title = mblog.get('title', {})
+                        if isinstance(title, dict) and title.get('text') == '置顶':
+                            continue
                         # Convert mobile format to desktop format for compatibility
                         converted = _convert_mobile_mblog_to_desktop_format(mblog)
                         posts.append(converted)
