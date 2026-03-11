@@ -31,9 +31,7 @@ class WebDriverManager:
         options.add_experimental_option('excludeSwitches', ['enable-automation'])
         options.add_experimental_option('useAutomationExtension', False)
         
-        # Additional options to prevent redirect loops and improve stability
-        options.add_argument('--disable-web-security')
-        options.add_argument('--allow-running-insecure-content')
+        # Stability options
         options.add_argument('--disable-features=VizDisplayCompositor')
         options.add_argument('--disable-background-timer-throttling')
         options.add_argument('--disable-backgrounding-occluded-windows')

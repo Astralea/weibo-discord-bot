@@ -8,8 +8,6 @@ schedule>=1.1.0
 selenium>=4.15.0
 webdriver-manager>=4.0.0
 toml>=0.10.0
-# Security and monitoring
-cryptography>=3.4.0
 urllib3>=1.26.0
 # Optional: Windows API support for better signal handling
 pywin32>=228; sys_platform == "win32"

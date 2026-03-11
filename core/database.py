@@ -82,7 +82,7 @@ class DatabaseManager:
 
     def cleanup_old_records(self, days: int = 30):
         try:
-            self.cursor.execute(f"DELETE FROM weibo WHERE processed_at < datetime('now', '-{int(days)} days')")
+            self.cursor.execute("DELETE FROM weibo WHERE processed_at < datetime('now', ? || ' days')", (f'-{int(days)}',))
             deleted_count = self.cursor.rowcount
             self.connection.commit()
             if deleted_count > 0:

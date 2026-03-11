@@ -63,12 +63,11 @@ class WeiboScraper:
         try:
             if self.driver:
                 self.driver.quit()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to quit old driver (may leak process): {e}")
         self.driver = WebDriverManager.create_driver()
 
     def _extract_uid_from_url(self, url: str) -> Optional[str]:
-        import re
         m = re.search(r'/u/([0-9]+)', url)
         if m:
             return m.group(1)
@@ -412,7 +411,6 @@ class WeiboScraper:
             pass
 
     def _create_base_embed(self, item: Dict[str, Any], endpoints: Dict[str, str]) -> DiscordEmbed:
-        import re
         text_raw = item.get('text_raw', '')
         created_at = item.get('created_at', '')
         title = endpoints.get('title', 'Weibo Post')
@@ -422,12 +420,11 @@ class WeiboScraper:
         now = datetime.now()
         dt = None
         try:
-            from datetime import datetime as _dt
-            dt = _dt.strptime(s, '%a %b %d %H:%M:%S %z %Y')
-        except Exception:
+            dt = datetime.strptime(s, '%a %b %d %H:%M:%S %z %Y')
+        except (ValueError, TypeError):
             dt = None
         if dt is None:
-            m = __import__('re').match(r'^(\d{1,2})-(\d{1,2}) (\d{1,2}):(\d{2})$', s)
+            m = re.match(r'^(\d{1,2})-(\d{1,2}) (\d{1,2}):(\d{2})$', s)
             if m:
                 month, day, hh, mm = map(int, m.groups())
                 dt = now.replace(month=month, day=day, hour=hh, minute=mm, second=0, microsecond=0)
@@ -484,8 +481,10 @@ class WeiboScraper:
                 return self.parse_item_with_video(item, embed, endpoints)
             if 'page_pic' in item['page_info']:
                 return self.parse_item_with_page_pic(item, embed, endpoints)
-            debug_file = f'debug_{str(uuid.uuid4())[-10:]}.json'
-            Path(debug_file).write_text(json.dumps(item, indent=2, ensure_ascii=False), encoding='utf-8')
+            debug_dir = Path('weibo_tmp')
+            debug_dir.mkdir(exist_ok=True)
+            debug_file = debug_dir / f'debug_{str(uuid.uuid4())[-10:]}.json'
+            debug_file.write_text(json.dumps(item, indent=2, ensure_ascii=False), encoding='utf-8')
             logger.warning(f'Unknown page_info structure logged to {debug_file}')
             return self.parse_item_text_only(item, embed, endpoints)
         return self.parse_item_text_only(item, embed, endpoints)
