@@ -26,7 +26,6 @@ data/
 weibo_bot.log
 geckodriver.log
 debug_*.json
-kawaii_content.json
 
 # images
 /images
