@@ -24,7 +24,9 @@ weibo.db-*
 weibo_tmp/
 data/
 weibo_bot.log
-# *.json
+geckodriver.log
+debug_*.json
+kawaii_content.json
 
 # images
 /images
